@@ -688,6 +688,7 @@ class Script(scripts.Script, metaclass=(
                 setattr(unit, param, default_value)
                 logger.warning(f'[{unit.module}.{param}] Invalid value({value}), using default value {default_value}.')
 
+    @staticmethod
     def check_sd_version_compatible(unit: external_code.ControlNetUnit) -> None:
         """
         Checks whether the given ControlNet unit has model compatible with the currently 
