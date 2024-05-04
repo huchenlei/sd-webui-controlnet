@@ -421,6 +421,16 @@ def to_processing_unit(unit: Union[Dict[str, Any], ControlNetUnit]) -> ControlNe
             if k not in vars(ControlNetUnit):
                 logger.warn(f"Received unrecognized key '{k}' in API.")
 
+        # Convert string to enum.
+        for field, enum in (
+            ("resize_mode", ResizeMode),
+            ("control_mode", ControlMode),
+            ("hr_option", HiResFixOption),
+            ("pulid_mode", PuLIDMode),
+        ):
+            if field in unit and isinstance(unit[field], str):
+                unit[field] = enum(unit[field])
+
         unit = ControlNetUnit(
             **{k: v for k, v in unit.items() if k in vars(ControlNetUnit).keys()}
         )

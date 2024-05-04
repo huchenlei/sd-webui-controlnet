@@ -6,7 +6,7 @@ from typing import List, Optional, Union, Dict, Tuple, Literal
 from dataclasses import dataclass
 import numpy as np
 
-from internal_controlnet.external_code import ControlNetUnit
+from internal_controlnet.external_code import ControlNetUnit, ResizeMode, ControlMode
 from scripts.supported_preprocessor import Preprocessor
 from scripts.utils import svg_preprocess, read_image
 from scripts import (
@@ -133,22 +133,34 @@ class UiControlNetUnit(ControlNetUnit):
 
     def __init__(
         self,
-        input_mode: InputMode = InputMode.SIMPLE,
-        batch_images: Optional[Union[str, List[external_code.InputImage]]] = None,
-        output_dir: str = "",
-        loopback: bool = False,
-        merge_gallery_files: List[
-            Dict[Union[Literal["name"], Literal["data"]], str]
-        ] = [],
-        use_preview_as_input: bool = False,
-        generated_image: Optional[np.ndarray] = None,
-        enabled: bool = True,
-        module: Optional[str] = None,
-        model: Optional[str] = None,
-        weight: float = 1.0,
-        image: Optional[Dict[str, np.ndarray]] = None,
-        *args,
-        **kwargs,
+        input_mode: InputMode,
+        batch_images: Optional[Union[str, List[external_code.InputImage]]],
+        output_dir: str,
+        loopback: bool,
+        merge_gallery_files: List[Dict[Union[Literal["name"], Literal["data"]], str]],
+        use_preview_as_input: bool,
+        generated_image: Optional[np.ndarray],
+        # ControlNetUnit params:
+        enabled: bool,
+        module: Optional[str],
+        model: Optional[str],
+        weight: float,
+        image: Optional[Dict[str, np.ndarray]],
+        resize_mode: str,
+        low_vram: bool,
+        processor_res: int,
+        threshold_a: float,
+        threshold_b: float,
+        guidance_start: float,
+        guidance_end: float,
+        pixel_perfect: bool,
+        control_mode: str,
+        inpaint_crop_input_image: bool,
+        hr_option: str,
+        save_detected_map: bool,
+        advanced_weighting: Optional[List[float]],
+        effective_region_mask: Optional[np.ndarray],
+        pulid_mode: str,
     ):
         if use_preview_as_input and generated_image is not None:
             input_image = generated_image
@@ -161,7 +173,28 @@ class UiControlNetUnit(ControlNetUnit):
                 {"image": read_image(file["name"])} for file in merge_gallery_files
             ]
 
-        super().__init__(enabled, module, model, weight, input_image, *args, **kwargs)
+        super().__init__(
+            enabled,
+            module,
+            model,
+            weight,
+            input_image,
+            ResizeMode(resize_mode),
+            low_vram,
+            processor_res,
+            threshold_a,
+            threshold_b,
+            guidance_start,
+            guidance_end,
+            pixel_perfect,
+            ControlMode(control_mode),
+            inpaint_crop_input_image,
+            HiResFixOption(hr_option),
+            save_detected_map,
+            advanced_weighting,
+            effective_region_mask,
+            PuLIDMode(pulid_mode),
+        )
         self.is_ui = True
         self.input_mode = input_mode
         self.batch_images = batch_images
@@ -330,11 +363,13 @@ class ControlNetUiGroup(object):
                                 tool="sketch",
                                 elem_id=f"{elem_id_tabname}_{tabname}_input_image",
                                 elem_classes=["cnet-image"],
-                                brush_color=shared.opts.img2img_inpaint_mask_brush_color
-                                if hasattr(
-                                    shared.opts, "img2img_inpaint_mask_brush_color"
-                                )
-                                else None,
+                                brush_color=(
+                                    shared.opts.img2img_inpaint_mask_brush_color
+                                    if hasattr(
+                                        shared.opts, "img2img_inpaint_mask_brush_color"
+                                    )
+                                    else None
+                                ),
                             )
                             self.image.preprocess = functools.partial(
                                 svg_preprocess, preprocess=self.image.preprocess
@@ -515,7 +550,11 @@ class ControlNetUiGroup(object):
             )
 
         with gr.Row(elem_classes=["controlnet_control_type", "controlnet_row"]):
-            self.type_filter = (gr.Dropdown if shared.opts.data.get("controlnet_control_type_dropdown", False) else gr.Radio)(
+            self.type_filter = (
+                gr.Dropdown
+                if shared.opts.data.get("controlnet_control_type_dropdown", False)
+                else gr.Radio
+            )(
                 Preprocessor.get_all_preprocessor_tags(),
                 label="Control Type",
                 value="All",
@@ -803,10 +842,12 @@ class ControlNetUiGroup(object):
     def register_build_sliders(self):
         def build_sliders(module: str, pp: bool):
             preprocessor = Preprocessor.get_preprocessor(module)
-            slider_resolution_kwargs = preprocessor.slider_resolution.gradio_update_kwargs.copy()
+            slider_resolution_kwargs = (
+                preprocessor.slider_resolution.gradio_update_kwargs.copy()
+            )
 
             if pp:
-                slider_resolution_kwargs['visible'] = False
+                slider_resolution_kwargs["visible"] = False
 
             grs = [
                 gr.update(**slider_resolution_kwargs),
@@ -852,9 +893,7 @@ class ControlNetUiGroup(object):
                 gr.Dropdown.update(
                     value=default_option, choices=filtered_preprocessor_list
                 ),
-                gr.Dropdown.update(
-                    value=default_model, choices=filtered_model_list
-                ),
+                gr.Dropdown.update(value=default_model, choices=filtered_model_list),
             ]
 
         self.type_filter.change(
@@ -893,7 +932,9 @@ class ControlNetUiGroup(object):
             )
 
     def register_run_annotator(self):
-        def run_annotator(image, module, pres, pthr_a, pthr_b, t2i_w, t2i_h, pp, rm, model: str):
+        def run_annotator(
+            image, module, pres, pthr_a, pthr_b, t2i_w, t2i_h, pp, rm, model: str
+        ):
             if image is None:
                 return (
                     gr.update(value=None, visible=True),
@@ -956,16 +997,16 @@ class ControlNetUiGroup(object):
                     and shared.opts.data.get("controlnet_clip_detector_on_cpu", False)
                 ),
                 json_pose_callback=(
-                    json_acceptor.accept
-                    if is_openpose(module)
-                    else None
+                    json_acceptor.accept if is_openpose(module) else None
                 ),
                 model=model,
             )
 
             return (
                 # Update to `generated_image`
-                gr.update(value=result.display_images[0], visible=True, interactive=False),
+                gr.update(
+                    value=result.display_images[0], visible=True, interactive=False
+                ),
                 # preprocessor_preview
                 gr.update(value=True),
                 # openpose editor
@@ -980,12 +1021,16 @@ class ControlNetUiGroup(object):
                 self.processor_res,
                 self.threshold_a,
                 self.threshold_b,
-                ControlNetUiGroup.a1111_context.img2img_w_slider
-                if self.is_img2img
-                else ControlNetUiGroup.a1111_context.txt2img_w_slider,
-                ControlNetUiGroup.a1111_context.img2img_h_slider
-                if self.is_img2img
-                else ControlNetUiGroup.a1111_context.txt2img_h_slider,
+                (
+                    ControlNetUiGroup.a1111_context.img2img_w_slider
+                    if self.is_img2img
+                    else ControlNetUiGroup.a1111_context.txt2img_w_slider
+                ),
+                (
+                    ControlNetUiGroup.a1111_context.img2img_h_slider
+                    if self.is_img2img
+                    else ControlNetUiGroup.a1111_context.txt2img_h_slider
+                ),
                 self.pixel_perfect,
                 self.resize_mode,
                 self.model,
@@ -1259,10 +1304,7 @@ class ControlNetUiGroup(object):
         self.preset_panel.register_callbacks(
             self,
             self.type_filter,
-            *[
-                getattr(self, key)
-                for key in vars(ControlNetUnit()).keys()
-            ],
+            *[getattr(self, key) for key in vars(ControlNetUnit()).keys()],
         )
         self.advanced_weight_control.register_callbacks(
             self.weight,
