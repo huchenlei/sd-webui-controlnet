@@ -1,7 +1,9 @@
+import os
 import torch
 import numpy as np
-from typing import Optional, List, TypedDict, Annotated
-from pydantic import BaseModel, validator, Field
+from typing import Optional, List, Annotated
+from pydantic import BaseModel, validator, root_validator, Field
+from PIL import Image
 
 from scripts.enums import (
     ResizeMode,
@@ -10,19 +12,8 @@ from scripts.enums import (
     PuLIDMode,
 )
 from scripts.supported_preprocessor import Preprocessor
-
-
-class GradioImageMaskPair(TypedDict):
-    """Represents the dict object from Gradio's image component if `tool="sketch"`
-    is specified.
-    {
-        "image": np.ndarray,
-        "mask": np.ndarray,
-    }
-    """
-
-    image: np.ndarray
-    mask: np.ndarray
+from scripts.logging import logger
+from .image_utils import to_base64_nparray
 
 
 class ControlNetUnit(BaseModel):
@@ -43,7 +34,9 @@ class ControlNetUnit(BaseModel):
     # TODO: Validate model.
     model: str = "None"
     weight: Annotated[float, Field(ge=0.0, le=2.0)] = 1.0
-    image: Optional[GradioImageMaskPair] = None
+    # [B, H, W, 4] RGBA
+    image: Optional[np.ndarray] = None
+
     resize_mode: ResizeMode = ResizeMode.INNER_FIT
     low_vram: bool = False
     processor_res: int = -1
@@ -88,7 +81,7 @@ class ControlNetUnit(BaseModel):
     # https://github.com/ToTheBeginning/PuLID
     pulid_mode: PuLIDMode = PuLIDMode.FIDELITY
 
-    # ------ API only fields ------
+    # ------- API only fields -------
     # The tensor input for ipadapter. When this field is set in the API,
     # the base64string will be interpret by torch.load to reconstruct ipadapter
     # preprocessor output.
@@ -97,3 +90,87 @@ class ControlNetUnit(BaseModel):
 
     mask: Optional[str] = None
     mask_image: Optional[str] = None
+
+    @root_validator
+    def mask_alias(cls, values: dict) -> dict:
+        """
+        Field "mask_image" is the alias of field "mask".
+        This is for compatibility with SD Forge API.
+        """
+        mask_image = values.get("mask_image")
+        mask = values.get("mask")
+        if mask_image is not None:
+            if mask is not None:
+                raise ValueError("Cannot specify both 'mask' and 'mask_image'!")
+            values["mask"] = mask_image
+        return values
+
+    @root_validator
+    def parse_legacy_image_formats(cls, values: dict) -> dict:
+        """
+        Parse image with following legacy formats.
+        - {"image": ..., "mask": ...}
+        - [image, mask]
+        - (image, mask)
+        - [{"image": ..., "mask": ...}, {"image": ..., "mask": ...}, ...]
+        """
+        init_image = values.get("image")
+        if init_image is None or isinstance(init_image, np.ndarray):
+            return values
+
+        if isinstance(init_image, (list, tuple)):
+            if not init_image:
+                raise ValueError(f"{init_image} is not a valid 'image' field value")
+            if isinstance(init_image[0], dict):
+                # [{"image": ..., "mask": ...}, {"image": ..., "mask": ...}, ...]
+                images = init_image
+            else:
+                assert len(init_image) == 2
+                # [image, mask]
+                # (image, mask)
+                images = [
+                    {
+                        "image": init_image[0],
+                        "mask": init_image[1],
+                    }
+                ]
+        elif isinstance(init_image, dict):
+            # {"image": ..., "mask": ...}
+            images = [init_image]
+        else:
+            raise ValueError(f"Unrecognized image field {init_image}")
+
+        def parse_image(image) -> np.ndarray:
+            if isinstance(image, np.ndarray):
+                return image
+
+            if isinstance(image, str):
+                if os.path.exists(image):
+                    logger.warn(
+                        "Reading image from local disk will be deprecated 2024-06-01."
+                    )
+                    return np.array(Image.open(image["image"])).astype("uint8")
+                else:
+                    return to_base64_nparray(image)
+
+            raise ValueError(f"Unrecognized image format {image}.")
+
+        np_images = []
+        for image_dict in images:
+            assert isinstance(image_dict, dict)
+            image = image_dict.get("image")
+            mask = image_dict.get("mask")
+            assert image is not None
+
+            np_image = parse_image(image)
+            np_mask = (
+                np.ones_like(np_image) * 255 if mask is None else parse_image(mask)
+            )
+            np_images.append(np.concatenate([np_image, np_mask], axis=2))  # [H, W, 4]
+
+        final_np_image = np.stack(np_images, axis=0)  # [B, H, W, 4]
+        assert final_np_image.ndim == 4
+        assert final_np_image.shape[-1] == 4
+        values["image"] = final_np_image
+
+        return values
