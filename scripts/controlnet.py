@@ -730,7 +730,7 @@ class Script(scripts.Script, metaclass=(
         image = parse_unit_image(unit)
         a1111_image = getattr(p, "init_images", [None])[0]
 
-        resize_mode = external_code.resize_mode_from_value(unit.resize_mode)
+        resize_mode = unit.resize_mode
 
         if batch_hijack.instance.is_batch and p_image_control is not None:
             logger.warning("Warn: Using legacy field 'p.image_control'.")
@@ -1089,7 +1089,6 @@ class Script(scripts.Script, metaclass=(
                 control_model_type.is_controlnet and
                 model_net.control_model.global_average_pooling
             )
-            control_mode = external_code.control_mode_from_value(unit.control_mode)
             forward_param = ControlParams(
                 control_model=model_net,
                 preprocessor=preprocessor_dict,
@@ -1102,9 +1101,9 @@ class Script(scripts.Script, metaclass=(
                 control_model_type=control_model_type,
                 global_average_pooling=global_average_pooling,
                 hr_hint_cond=hr_control,
-                hr_option=HiResFixOption.from_value(unit.hr_option) if high_res_fix else HiResFixOption.BOTH,
-                soft_injection=control_mode != ControlMode.BALANCED,
-                cfg_injection=control_mode == ControlMode.CONTROL,
+                hr_option=unit.hr_option if high_res_fix else HiResFixOption.BOTH,
+                soft_injection=unit.control_mode != ControlMode.BALANCED,
+                cfg_injection=unit.control_mode == ControlMode.CONTROL,
                 effective_region_mask=(
                     get_pytorch_control(unit.effective_region_mask)[:, 0:1, :, :]
                     if unit.effective_region_mask is not None
@@ -1216,11 +1215,10 @@ class Script(scripts.Script, metaclass=(
                     weight = param.weight
 
                 h, w, hr_y, hr_x = Script.get_target_dimensions(p)
-                pulid_mode = PuLIDMode(unit.pulid_mode) if isinstance(unit.pulid_mode, str) else unit.pulid_mode
-                if pulid_mode == PuLIDMode.STYLE:
+                if unit.pulid_mode == PuLIDMode.STYLE:
                     pulid_attn_setting = PULID_SETTING_STYLE
                 else:
-                    assert pulid_mode == PuLIDMode.FIDELITY
+                    assert unit.pulid_mode == PuLIDMode.FIDELITY
                     pulid_attn_setting = PULID_SETTING_FIDELITY
 
                 param.control_model.hook(

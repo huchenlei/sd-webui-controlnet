@@ -47,14 +47,6 @@ def resize_mode_from_value(value: Union[str, int, ResizeMode]) -> ResizeMode:
         return value
 
 
-def control_mode_from_value(value: Union[str, int, ControlMode]) -> ControlMode:
-    if isinstance(value, str):
-        return ControlMode(value)
-    elif isinstance(value, int):
-        return [e for e in ControlMode][value]
-    else:
-        return value
-
 
 def visualize_inpaint_mask(img):
     if img.ndim == 3 and img.shape[2] == 4:
@@ -132,7 +124,7 @@ class ControlNetUnit:
     model: str = "None"
     weight: float = 1.0
     image: Optional[Union[InputImage, List[InputImage]]] = None
-    resize_mode: Union[ResizeMode, int, str] = ResizeMode.INNER_FIT
+    resize_mode: ResizeMode = ResizeMode.INNER_FIT
     low_vram: bool = False
     processor_res: int = -1
     threshold_a: float = -1
@@ -140,13 +132,13 @@ class ControlNetUnit:
     guidance_start: float = 0.0
     guidance_end: float = 1.0
     pixel_perfect: bool = False
-    control_mode: Union[ControlMode, int, str] = ControlMode.BALANCED
+    control_mode: ControlMode = ControlMode.BALANCED
     # Whether to crop input image based on A1111 img2img mask. This flag is only used when `inpaint area`
     # in A1111 is set to `Only masked`. In API, this correspond to `inpaint_full_res = True`.
     inpaint_crop_input_image: bool = True
     # If hires fix is enabled in A1111, how should this ControlNet unit be applied.
     # The value is ignored if the generation is not using hires fix.
-    hr_option: Union[HiResFixOption, int, str] = HiResFixOption.BOTH
+    hr_option: HiResFixOption = HiResFixOption.BOTH
 
     # Whether save the detected map of this unit. Setting this option to False prevents saving the
     # detected map or sending detected map along with generated images via API.
