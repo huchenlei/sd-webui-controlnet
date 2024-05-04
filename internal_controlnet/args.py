@@ -106,16 +106,29 @@ class ControlNetUnit(BaseModel):
         return values
 
     @root_validator
-    def parse_legacy_image_formats(cls, values: dict) -> dict:
+    def parse_image_formats(cls, values: dict) -> dict:
         """
-        Parse image with following legacy formats.
-        - {"image": ..., "mask": ...}
-        - [image, mask]
-        - (image, mask)
-        - [{"image": ..., "mask": ...}, {"image": ..., "mask": ...}, ...]
+        Parse image with following formats.
+        API
+        - image = {"image": ..., "mask": ...}
+        - image = [image, mask]
+        - image = (image, mask)
+        - image = [{"image": ..., "mask": ...}, {"image": ..., "mask": ...}, ...]
+        - image = base64image, mask = base64image
+
+        UI
+        - image = np.ndarray (B, H, W, 4)
         """
         init_image = values.get("image")
-        if init_image is None or isinstance(init_image, np.ndarray):
+        init_mask = values.get("mask")
+
+        if init_image is None:
+            assert init_mask is None
+            return values
+
+        if isinstance(init_image, np.ndarray):
+            assert init_image.ndim == 4
+            assert init_image.shape[-1] == 4
             return values
 
         if isinstance(init_image, (list, tuple)):
@@ -137,6 +150,14 @@ class ControlNetUnit(BaseModel):
         elif isinstance(init_image, dict):
             # {"image": ..., "mask": ...}
             images = [init_image]
+        elif isinstance(init_image, str):
+            # image = base64image, mask = base64image
+            images = [
+                {
+                    "image": init_image,
+                    "mask": init_mask,
+                }
+            ]
         else:
             raise ValueError(f"Unrecognized image field {init_image}")
 
