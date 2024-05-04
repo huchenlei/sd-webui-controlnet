@@ -1,5 +1,15 @@
+import torch
 import numpy as np
-from typing import TypedDict
+from typing import Optional, List, TypedDict, Annotated
+from pydantic import BaseModel, validator, Field
+
+from scripts.enums import (
+    ResizeMode,
+    ControlMode,
+    HiResFixOption,
+    PuLIDMode,
+)
+from scripts.supported_preprocessor import Preprocessor
 
 
 class GradioImageMaskPair(TypedDict):
@@ -10,19 +20,30 @@ class GradioImageMaskPair(TypedDict):
         "mask": np.ndarray,
     }
     """
+
     image: np.ndarray
     mask: np.ndarray
 
-class ControlNetUnit:
+
+class ControlNetUnit(BaseModel):
     """
     Represents an entire ControlNet processing unit.
     """
 
     enabled: bool = True
     module: str = "none"
+
+    @validator("module", always=True, pre=True)
+    def check_module(cls, value: str) -> str:
+        p = Preprocessor.get_preprocessor(value)
+        if p is None:
+            raise ValueError(f"module({value}) not found in supported modules.")
+        return value
+
+    # TODO: Validate model.
     model: str = "None"
-    weight: float = 1.0
-    image: Optional[Union[InputImage, List[InputImage]]] = None
+    weight: Annotated[float, Field(ge=0.0, le=2.0)] = 1.0
+    image: Optional[GradioImageMaskPair] = None
     resize_mode: ResizeMode = ResizeMode.INNER_FIT
     low_vram: bool = False
     processor_res: int = -1
@@ -67,8 +88,12 @@ class ControlNetUnit:
     # https://github.com/ToTheBeginning/PuLID
     pulid_mode: PuLIDMode = PuLIDMode.FIDELITY
 
+    # ------ API only fields ------
     # The tensor input for ipadapter. When this field is set in the API,
     # the base64string will be interpret by torch.load to reconstruct ipadapter
     # preprocessor output.
     # Currently the option is only accessible in API calls.
-    ipadapter_input: Optional[List[Any]] = None
+    ipadapter_input: Optional[List[torch.Tensor]] = None
+
+    mask: Optional[str] = None
+    mask_image: Optional[str] = None
