@@ -65,15 +65,14 @@ from scripts.lvminthin import lvmin_thin, nake_nms
 from scripts.controlnet_model_guess import build_model_by_guess, ControlModel
 from scripts.hook import torch_dfs
 
-init_logger()
-logger.info(f"ControlNet {version_flag}")
-
 # Gradio 3.32 bug fix
 import tempfile
 
 gradio_tempfile_path = os.path.join(tempfile.gettempdir(), "gradio")
 os.makedirs(gradio_tempfile_path, exist_ok=True)
 
+init_logger()
+logger.info(f"ControlNet {version_flag}")
 
 def clear_all_secondary_control_models(m):
     all_modules = torch_dfs(m)
