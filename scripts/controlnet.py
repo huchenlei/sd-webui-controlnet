@@ -631,7 +631,7 @@ class Script(
     def get_enabled_units(p):
         units = external_code.get_all_units_in_processing(p)
         enabled_units = []
-        for idx, unit in enumerate(units):
+        for unit in enumerate(units):
             if not unit.enabled:
                 continue
 
