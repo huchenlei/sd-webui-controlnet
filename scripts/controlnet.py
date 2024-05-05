@@ -13,6 +13,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from internal_controlnet.args import ControlNetUnit
 import modules.scripts
 from modules import shared, devices, script_callbacks, processing, masking, images
 from modules.processing import (
@@ -628,19 +629,12 @@ class Script(
             return get_pytorch_control(detected_map), detected_map
 
     @staticmethod
-    def get_enabled_units(p):
-        units = external_code.get_all_units_in_processing(p)
-        enabled_units = []
-        for unit in enumerate(units):
-            if not unit.enabled:
-                continue
-
-            if hasattr(unit, "unfold_merged"):
-                enabled_units.extend(unit.unfold_merged())
-            else:
-                enabled_units.append(copy(unit))
-
-        Infotext.write_infotext(enabled_units, p)
+    def get_enabled_units(p: StableDiffusionProcessing) -> List[ControlNetUnit]:
+        enabled_units = [
+            unit
+            for unit in external_code.get_all_units_in_processing(p)
+            if unit.enabled
+        ]
         return enabled_units
 
     @staticmethod
@@ -832,6 +826,8 @@ class Script(
 
         if not batch_hijack.instance.is_batch:
             self.enabled_units = Script.get_enabled_units(p)
+
+        Infotext.write_infotext(self.enabled_units, p)
 
         batch_option_uint_separate = (
             self.ui_batch_option_state[0] == BatchOption.SEPARATE.value
