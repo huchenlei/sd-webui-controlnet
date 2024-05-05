@@ -4,7 +4,7 @@ import os
 import logging
 from collections import OrderedDict
 from copy import copy, deepcopy
-from typing import Dict, Optional, Tuple, List, Union
+from typing import Dict, Optional, Tuple, List
 import gradio as gr
 import time
 from einops import rearrange
@@ -15,7 +15,6 @@ from PIL import Image
 
 import modules.scripts
 from modules import shared, devices, script_callbacks, processing, masking, images
-from modules.api.api import decode_base64_to_image
 from modules.processing import (
     StableDiffusionProcessingImg2Img,
     StableDiffusionProcessingTxt2Img,
