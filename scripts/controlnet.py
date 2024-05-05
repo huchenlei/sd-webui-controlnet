@@ -50,10 +50,7 @@ from scripts.enums import (
     BatchOption,
     ResizeMode,
 )
-from scripts.controlnet_ui.controlnet_ui_group import (
-    ControlNetUiGroup,
-    UiControlNetUnit,
-)
+from scripts.controlnet_ui.controlnet_ui_group import ControlNetUiGroup
 from scripts.controlnet_ui.photopea import Photopea
 from scripts.logging import logger, init_logger
 from scripts.supported_preprocessor import Preprocessor
