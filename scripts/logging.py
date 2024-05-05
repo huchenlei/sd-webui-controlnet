@@ -2,8 +2,6 @@ import logging
 import copy
 import sys
 
-from modules import shared
-
 
 class ColoredFormatter(logging.Formatter):
     COLORS = {
@@ -35,7 +33,11 @@ if not logger.handlers:
     )
     logger.addHandler(handler)
 
+
 # Configure logger
-loglevel_string = getattr(shared.cmd_opts, "controlnet_loglevel", "INFO")
-loglevel = getattr(logging, loglevel_string.upper(), None)
-logger.setLevel(loglevel)
+def init_logger():
+    from modules import shared
+
+    loglevel_string = getattr(shared.cmd_opts, "controlnet_loglevel", "INFO")
+    loglevel = getattr(logging, loglevel_string.upper(), None)
+    logger.setLevel(loglevel)

@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from typing import Optional, List, Annotated
+from typing import Optional, List, Annotated, ClassVar, Callable
 from pydantic import BaseModel, validator, root_validator, Field
 from PIL import Image
 
@@ -11,9 +11,11 @@ from scripts.enums import (
     HiResFixOption,
     PuLIDMode,
 )
-from scripts.supported_preprocessor import Preprocessor
 from scripts.logging import logger
-from .image_utils import to_base64_nparray
+
+
+def _unimplemented_func(*args, **kwargs):
+    raise NotImplementedError("Not implemented.")
 
 
 class ControlNetUnit(BaseModel):
@@ -21,18 +23,30 @@ class ControlNetUnit(BaseModel):
     Represents an entire ControlNet processing unit.
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
+    cls_match_module: ClassVar[Callable[[str], bool]] = _unimplemented_func
+    cls_match_model: ClassVar[Callable[[str], bool]] = _unimplemented_func
+    cls_decode_base64: ClassVar[Callable[[str], np.ndarray]] = _unimplemented_func
+
     enabled: bool = True
     module: str = "none"
 
     @validator("module", always=True, pre=True)
     def check_module(cls, value: str) -> str:
-        p = Preprocessor.get_preprocessor(value)
-        if p is None:
+        if not ControlNetUnit.cls_match_module(value):
             raise ValueError(f"module({value}) not found in supported modules.")
         return value
 
-    # TODO: Validate model.
     model: str = "None"
+
+    @validator("model", always=True, pre=True)
+    def check_model(cls, value: str) -> str:
+        if not ControlNetUnit.cls_match_model(value):
+            raise ValueError(f"model({value}) not found in supported models.")
+        return value
+
     weight: Annotated[float, Field(ge=0.0, le=2.0)] = 1.0
     # [B, H, W, 4] RGBA
     image: Optional[np.ndarray] = None
@@ -172,7 +186,7 @@ class ControlNetUnit(BaseModel):
                     )
                     return np.array(Image.open(image["image"])).astype("uint8")
                 else:
-                    return to_base64_nparray(image)
+                    return cls.cls_decode_base64(image)
 
             raise ValueError(f"Unrecognized image format {image}.")
 

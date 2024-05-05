@@ -34,7 +34,7 @@ from scripts.enums import (
 )
 from scripts.controlnet_ui.controlnet_ui_group import ControlNetUiGroup, UiControlNetUnit
 from scripts.controlnet_ui.photopea import Photopea
-from scripts.logging import logger
+from scripts.logging import logger, init_logger
 from scripts.supported_preprocessor import Preprocessor
 from scripts.animate_diff.batch import add_animate_diff_batch_input
 from modules.processing import StableDiffusionProcessingImg2Img, StableDiffusionProcessingTxt2Img, StableDiffusionProcessing
@@ -50,6 +50,7 @@ from scripts.lvminthin import lvmin_thin, nake_nms
 from scripts.controlnet_model_guess import build_model_by_guess, ControlModel
 from scripts.hook import torch_dfs
 
+init_logger()
 
 # Gradio 3.32 bug fix
 import tempfile
