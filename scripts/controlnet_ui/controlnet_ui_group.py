@@ -146,7 +146,7 @@ class UiControlNetUnit(ControlNetUnit):
         model: Optional[str],
         weight: float,
         image: Optional[Dict[str, np.ndarray]],
-        *args
+        *args,
     ):
         if use_preview_as_input and generated_image is not None:
             input_image = generated_image
@@ -219,7 +219,6 @@ class ControlNetUiGroup(object):
     def __init__(
         self,
         is_img2img: bool,
-        default_unit: ControlNetUnit,
         photopea: Optional[Photopea],
     ):
         # Whether callbacks have been registered.
@@ -228,11 +227,12 @@ class ControlNetUiGroup(object):
         self.ui_initialized: bool = False
 
         self.is_img2img = is_img2img
-        self.default_unit = default_unit
+        self.default_unit = ControlNetUnit()
         self.photopea = photopea
         self.webcam_enabled = False
         self.webcam_mirrored = False
 
+        self.unit = gr.State({})
         # Note: All gradio elements declared in `render` will be defined as member variable.
         # Update counter to trigger a force update of UiControlNetUnit.
         # This is useful when a field with no event subscriber available changes.
@@ -663,7 +663,13 @@ class ControlNetUiGroup(object):
 
         self.batch_image_dir_state = gr.State("")
         self.output_dir_state = gr.State("")
-        unit_args = (
+
+        self.register_core_callbacks()
+        self.ui_initialized = True
+        return self.unit
+
+    def register_create_unit(self):
+        unit_args = [
             # Non-persistent fields.
             # Following inputs will not be persistent on `ControlNetUnit`.
             # They are only used during object construction.
@@ -695,22 +701,21 @@ class ControlNetUiGroup(object):
             self.advanced_weighting,
             self.effective_region_mask,
             self.pulid_mode,
-        )
+        ]
 
-        unit = gr.State({})
+        def create_unit_dict(*args) -> dict:
+            return {}
+
         (
             ControlNetUiGroup.a1111_context.img2img_submit_button
             if self.is_img2img
             else ControlNetUiGroup.a1111_context.txt2img_submit_button
         ).click(
-            fn=UiControlNetUnit,
-            inputs=list(unit_args),
-            outputs=unit,
+            fn=create_unit_dict,
+            inputs=unit_args,
+            outputs=self.unit,
             queue=False,
         )
-        self.register_core_callbacks()
-        self.ui_initialized = True
-        return unit
 
     def register_send_dimensions(self):
         """Register event handler for send dimension button."""
@@ -1231,6 +1236,7 @@ class ControlNetUiGroup(object):
     def register_core_callbacks(self):
         """Register core callbacks that only involves gradio components defined
         within this ui group."""
+        self.register_create_unit()
         self.register_webcam_toggle()
         self.register_webcam_mirror_toggle()
         self.register_refresh_all_models()

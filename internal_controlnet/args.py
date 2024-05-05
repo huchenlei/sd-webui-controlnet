@@ -6,6 +6,7 @@ from pydantic import BaseModel, validator, root_validator, Field
 from PIL import Image
 
 from scripts.enums import (
+    InputMode,
     ResizeMode,
     ControlMode,
     HiResFixOption,
@@ -267,6 +268,13 @@ class ControlNetUnit(BaseModel):
 
         return values
 
+    # UI-only fields
+    is_ui: bool = False
+    input_mode: InputMode = InputMode.SIMPLE
+    batch_images: Optional[str] = None
+    output_dir: str = ""
+    loopback: bool = False
+
     @staticmethod
     def infotext_excluded_fields() -> List[str]:
         return [
@@ -279,6 +287,12 @@ class ControlNetUnit(BaseModel):
             "inpaint_crop_input_image",
             "effective_region_mask",
             "pulid_mode",
+            # UI only fields
+            "is_ui",
+            "input_mode",
+            "batch_images",
+            "output_dir",
+            "loopback",
         ]
 
     @property
