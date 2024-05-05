@@ -178,7 +178,7 @@ def get_control(
         p, "enable_hr", False
     )
     h, w, hr_y, hr_x = Script.get_target_dimensions(p)
-    input_image, resize_mode = Script.choose_input_image(p, unit, idx)
+    input_image, resize_mode = Script.choose_input_image(p, unit)
     if isinstance(input_image, list):
         assert unit.accepts_multiple_inputs or unit.is_animate_diff_batch
         input_images = input_image
@@ -714,111 +714,19 @@ class Script(
     def choose_input_image(
         p: processing.StableDiffusionProcessing,
         unit: external_code.ControlNetUnit,
-        idx: int,
     ) -> Tuple[np.ndarray, ResizeMode]:
         """Choose input image from following sources with descending priority:
-         - p.image_control: [Deprecated] Lagacy way to pass image to controlnet.
-         - p.control_net_input_image: [Deprecated] Lagacy way to pass image to controlnet.
          - unit.image: ControlNet tab input image.
          - p.init_images: A1111 img2img tab input image.
 
         Returns:
-            - The input image in ndarray form.
+            - The input image in ndarray form [B, H, W, C=4].
             - The resize mode.
         """
-
-        def parse_unit_image(
-            unit: external_code.ControlNetUnit,
-        ) -> Union[List[Dict[str, np.ndarray]], Dict[str, np.ndarray]]:
-            unit_has_multiple_images = (
-                isinstance(unit.image, list)
-                and len(unit.image) > 0
-                and "image" in unit.image[0]
-            )
-            if unit_has_multiple_images:
-                return [
-                    d
-                    for img in unit.image
-                    for d in (image_dict_from_any(img),)
-                    if d is not None
-                ]
-            return image_dict_from_any(unit.image)
-
-        def decode_image(img) -> np.ndarray:
-            """Need to check the image for API compatibility."""
-            if isinstance(img, str):
-                return np.asarray(decode_base64_to_image(image["image"]))
-            else:
-                assert isinstance(img, np.ndarray)
-                return img
-
-        # 4 input image sources.
-        p_image_control = getattr(p, "image_control", None)
-        p_input_image = Script.get_remote_call(p, "control_net_input_image", None, idx)
-        image = parse_unit_image(unit)
         a1111_image = getattr(p, "init_images", [None])[0]
 
-        resize_mode = unit.resize_mode
-
-        if batch_hijack.instance.is_batch and p_image_control is not None:
-            logger.warning("Warn: Using legacy field 'p.image_control'.")
-            input_image = HWC3(np.asarray(p_image_control))
-        elif p_input_image is not None:
-            logger.warning("Warn: Using legacy field 'p.controlnet_input_image'")
-            if (
-                isinstance(p_input_image, dict)
-                and "mask" in p_input_image
-                and "image" in p_input_image
-            ):
-                color = HWC3(np.asarray(p_input_image["image"]))
-                alpha = np.asarray(p_input_image["mask"])[..., None]
-                input_image = np.concatenate([color, alpha], axis=2)
-            else:
-                input_image = HWC3(np.asarray(p_input_image))
-        elif image:
-            if isinstance(image, list):
-                # Add mask logic if later there is a processor that accepts mask
-                # on multiple inputs.
-                input_image = [HWC3(decode_image(img["image"])) for img in image]
-                if (
-                    unit.is_animate_diff_batch
-                    and len(image) > 0
-                    and "mask" in image[0]
-                    and image[0]["mask"] is not None
-                ):
-                    for idx in range(len(input_image)):
-                        while len(image[idx]["mask"].shape) < 3:
-                            image[idx]["mask"] = image[idx]["mask"][..., np.newaxis]
-                        if unit.is_inpaint or unit.uses_clip:
-                            color = HWC3(image[idx]["image"])
-                            alpha = image[idx]["mask"][:, :, 0:1]
-                            input_image[idx] = np.concatenate([color, alpha], axis=2)
-            else:
-                input_image = HWC3(decode_image(image["image"]))
-                if "mask" in image and image["mask"] is not None:
-                    while len(image["mask"].shape) < 3:
-                        image["mask"] = image["mask"][..., np.newaxis]
-                    if unit.is_inpaint or unit.uses_clip:
-                        logger.info("using mask")
-                        color = HWC3(image["image"])
-                        alpha = image["mask"][:, :, 0:1]
-                        input_image = np.concatenate([color, alpha], axis=2)
-                    elif (
-                        not shared.opts.data.get(
-                            "controlnet_ignore_noninpaint_mask", False
-                        )
-                        and
-                        # There is wield gradio issue that would produce mask that is
-                        # not pure color when no scribble is made on canvas.
-                        # See https://github.com/Mikubill/sd-webui-controlnet/issues/1638.
-                        not (
-                            (image["mask"][:, :, 0] <= 5).all()
-                            or (image["mask"][:, :, 0] >= 250).all()
-                        )
-                    ):
-                        logger.info("using mask as input")
-                        input_image = HWC3(image["mask"][:, :, 0])
-                        unit.module = "none"  # Always use black bg and white line
+        if unit.image is not None:
+            return unit.image, unit.resize_mode
         elif a1111_image is not None:
             input_image = HWC3(np.asarray(a1111_image))
             a1111_i2i_resize_mode = getattr(p, "resize_mode", None)
@@ -843,14 +751,13 @@ class Script(
                         ],
                         axis=2,
                     )
+            return input_image[None, :, :, :], resize_mode
         else:
+            # TODO move this to higher level.
             # No input image detected.
             if batch_hijack.instance.is_batch:
                 shared.state.interrupted = True
             raise ValueError("controlnet is enabled but no input image is given")
-
-        assert isinstance(input_image, (np.ndarray, list))
-        return input_image, resize_mode
 
     @staticmethod
     def try_crop_image_with_a1111_mask(
