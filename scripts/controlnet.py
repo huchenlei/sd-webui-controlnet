@@ -5,7 +5,7 @@ import logging
 from collections import OrderedDict
 from copy import copy, deepcopy
 from typing import Dict, Optional, Tuple, List, Union
-import modules.scripts as scripts
+import modules.scripts
 from modules import shared, devices, script_callbacks, processing, masking, images
 from modules.api.api import decode_base64_to_image
 import gradio as gr
@@ -282,7 +282,7 @@ def get_control(
 
 
 class Script(
-    scripts.Script,
+    modules.scripts.Script,
     metaclass=(utils.TimeMeta if logger.level == logging.DEBUG else type),
 ):
 
@@ -313,7 +313,7 @@ class Script(
         return "ControlNet"
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible
+        return modules.scripts.AlwaysVisible
 
     @staticmethod
     def get_default_ui_unit(is_ui=True):
