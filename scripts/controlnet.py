@@ -5,13 +5,23 @@ import logging
 from collections import OrderedDict
 from copy import copy, deepcopy
 from typing import Dict, Optional, Tuple, List, Union
+import gradio as gr
+import time
+from einops import rearrange
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+
 import modules.scripts
 from modules import shared, devices, script_callbacks, processing, masking, images
 from modules.api.api import decode_base64_to_image
-import gradio as gr
-import time
-
-from einops import rearrange
+from modules.processing import (
+    StableDiffusionProcessingImg2Img,
+    StableDiffusionProcessingTxt2Img,
+    StableDiffusionProcessing,
+)
+from modules.images import save_image
 
 # Register all preprocessors.
 import scripts.preprocessor as preprocessor_init  # noqa
@@ -49,19 +59,7 @@ from scripts.logging import logger, init_logger
 from scripts.supported_preprocessor import Preprocessor
 from scripts.animate_diff.batch import add_animate_diff_batch_input
 from scripts.controlnet_version import version_flag
-from modules.processing import (
-    StableDiffusionProcessingImg2Img,
-    StableDiffusionProcessingTxt2Img,
-    StableDiffusionProcessing,
-)
-from modules.images import save_image
 from scripts.infotext import Infotext
-
-import cv2
-import numpy as np
-import torch
-
-from PIL import Image
 from scripts.lvminthin import lvmin_thin, nake_nms
 from scripts.controlnet_model_guess import build_model_by_guess, ControlModel
 from scripts.hook import torch_dfs
