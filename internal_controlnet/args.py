@@ -25,6 +25,7 @@ class ControlNetUnit(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        extra = "ignore"
 
     cls_match_module: ClassVar[Callable[[str], bool]] = _unimplemented_func
     cls_match_model: ClassVar[Callable[[str], bool]] = _unimplemented_func
@@ -312,3 +313,10 @@ class ControlNetUnit(BaseModel):
     @property
     def is_inpaint(self) -> bool:
         return "inpaint" in self.module
+
+    def get_actual_preprocessor(self):
+        if self.module == "ip-adapter-auto":
+            return ControlNetUnit.cls_get_preprocessor(
+                self.module
+            ).get_preprocessor_by_model(self.model)
+        return ControlNetUnit.cls_get_preprocessor(self.module)

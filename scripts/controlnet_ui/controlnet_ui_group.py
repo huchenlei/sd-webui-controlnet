@@ -146,21 +146,7 @@ class UiControlNetUnit(ControlNetUnit):
         model: Optional[str],
         weight: float,
         image: Optional[Dict[str, np.ndarray]],
-        resize_mode: str,
-        low_vram: bool,
-        processor_res: int,
-        threshold_a: float,
-        threshold_b: float,
-        guidance_start: float,
-        guidance_end: float,
-        pixel_perfect: bool,
-        control_mode: str,
-        inpaint_crop_input_image: bool,
-        hr_option: str,
-        save_detected_map: bool,
-        advanced_weighting: Optional[List[float]],
-        effective_region_mask: Optional[np.ndarray],
-        pulid_mode: str,
+        *args
     ):
         if use_preview_as_input and generated_image is not None:
             input_image = generated_image
@@ -173,28 +159,7 @@ class UiControlNetUnit(ControlNetUnit):
                 {"image": read_image(file["name"])} for file in merge_gallery_files
             ]
 
-        super().__init__(
-            enabled,
-            module,
-            model,
-            weight,
-            input_image,
-            ResizeMode(resize_mode),
-            low_vram,
-            processor_res,
-            threshold_a,
-            threshold_b,
-            guidance_start,
-            guidance_end,
-            pixel_perfect,
-            ControlMode(control_mode),
-            inpaint_crop_input_image,
-            HiResFixOption(hr_option),
-            save_detected_map,
-            advanced_weighting,
-            effective_region_mask,
-            PuLIDMode(pulid_mode),
-        )
+        super().__init__(enabled, module, model, weight, input_image, *args)
         self.is_ui = True
         self.input_mode = input_mode
         self.batch_images = batch_images
@@ -208,7 +173,7 @@ class UiControlNetUnit(ControlNetUnit):
         if self.input_mode != InputMode.MERGE:
             return [copy(self)]
 
-        if self.accepts_multiple_inputs():
+        if self.accepts_multiple_inputs:
             self.input_mode = InputMode.SIMPLE
             return [copy(self)]
 
@@ -699,13 +664,13 @@ class ControlNetUiGroup(object):
         self.batch_image_dir_state = gr.State("")
         self.output_dir_state = gr.State("")
         unit_args = (
+            # Non-persistent fields.
+            # Following inputs will not be persistent on `ControlNetUnit`.
+            # They are only used during object construction.
             self.input_mode,
             self.batch_image_dir_state,
             self.output_dir_state,
             self.loopback,
-            # Non-persistent fields.
-            # Following inputs will not be persistent on `ControlNetUnit`.
-            # They are only used during object construction.
             self.merge_gallery,
             self.use_preview_as_input,
             self.generated_image,
@@ -732,26 +697,7 @@ class ControlNetUiGroup(object):
             self.pulid_mode,
         )
 
-        unit = gr.State(self.default_unit)
-        for comp in unit_args + (self.update_unit_counter,):
-            event_subscribers = []
-            if hasattr(comp, "edit"):
-                event_subscribers.append(comp.edit)
-            elif hasattr(comp, "click"):
-                event_subscribers.append(comp.click)
-            elif isinstance(comp, gr.Slider) and hasattr(comp, "release"):
-                event_subscribers.append(comp.release)
-            elif hasattr(comp, "change"):
-                event_subscribers.append(comp.change)
-
-            if hasattr(comp, "clear"):
-                event_subscribers.append(comp.clear)
-
-            for event_subscriber in event_subscribers:
-                event_subscriber(
-                    fn=UiControlNetUnit, inputs=list(unit_args), outputs=unit
-                )
-
+        unit = gr.State({})
         (
             ControlNetUiGroup.a1111_context.img2img_submit_button
             if self.is_img2img

@@ -244,7 +244,7 @@ def get_control(
     h, w, hr_y, hr_x = Script.get_target_dimensions(p)
     input_image, resize_mode = Script.choose_input_image(p, unit, idx)
     if isinstance(input_image, list):
-        assert unit.accepts_multiple_inputs() or unit.is_animate_diff_batch
+        assert unit.accepts_multiple_inputs or unit.is_animate_diff_batch
         input_images = input_image
     else: # Following operations are only for single input image.
         input_image = Script.try_crop_image_with_a1111_mask(p, unit, input_image, resize_mode)
@@ -1013,7 +1013,7 @@ class Script(scripts.Script, metaclass=(
             elif unit.is_animate_diff_batch or control_model_type in [ControlModelType.SparseCtrl]:
                 cn_ad_keyframe_idx = getattr(unit, "batch_keyframe_idx", None)
                 def ad_process_control(cc: List[torch.Tensor], cn_ad_keyframe_idx=cn_ad_keyframe_idx):
-                    if unit.accepts_multiple_inputs():
+                    if unit.accepts_multiple_inputs:
                         ip_adapter_image_emb_cond = []
                         model_net.ipadapter.image_proj_model.to(torch.float32) # noqa
                         for c in cc:
@@ -1040,7 +1040,7 @@ class Script(scripts.Script, metaclass=(
                                 for frame_idx, frame_path in zip(unit.batch_keyframe_idx, unit.batch_image_files):
                                     logger.info(f"\t{frame_idx}: {frame_path}")
                             c = SparseCtrl.create_cond_mask(cn_ad_keyframe_idx, c, p.batch_size).cpu()
-                        elif unit.accepts_multiple_inputs():
+                        elif unit.accepts_multiple_inputs:
                             # ip-adapter should do prompt travel
                             logger.info("IP-Adapter: control prompts will be traveled in the following way:")
                             for frame_idx, frame_path in zip(unit.batch_keyframe_idx, unit.batch_image_files):
@@ -1069,7 +1069,7 @@ class Script(scripts.Script, metaclass=(
                             c_full[cn_ad_keyframe_idx] = c
                             c = c_full
                     # handle batch condition and unconditional
-                    if shared.opts.batch_cond_uncond and not unit.accepts_multiple_inputs():
+                    if shared.opts.batch_cond_uncond and not unit.accepts_multiple_inputs:
                         c = torch.cat([c, c], dim=0)
                     return c
 
