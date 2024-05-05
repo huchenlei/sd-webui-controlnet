@@ -101,6 +101,13 @@ class ControlNetUnit(BaseModel):
     # The effective region mask that unit's effect should be restricted to.
     effective_region_mask: Optional[np.ndarray] = None
 
+    @validator("effective_region_mask", pre=True)
+    def parse_effective_region_mask(cls, value) -> np.ndarray:
+        if isinstance(value, str):
+            return cls.cls_decode_base64(value)
+        assert isinstance(value, np.ndarray) or value is None
+        return value
+
     # The weight mode for PuLID.
     # https://github.com/ToTheBeginning/PuLID
     pulid_mode: PuLIDMode = PuLIDMode.FIDELITY

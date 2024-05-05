@@ -118,3 +118,12 @@ def test_start_end():
         ControlNetUnit(guidance_start=11)
     with pytest.raises(ValueError):
         ControlNetUnit(guidance_end=11)
+
+def test_effective_region_mask():
+    ControlNetUnit(effective_region_mask="b64img1")
+    ControlNetUnit(effective_region_mask=None)
+    ControlNetUnit(effective_region_mask=img1)
+
+    with pytest.raises(ValueError):
+        ControlNetUnit(effective_region_mask=124)
+
