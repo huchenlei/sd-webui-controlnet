@@ -92,3 +92,29 @@ def test_valid_image_formats(set_cls_funcs):
 def test_invalid_image_formats(set_cls_funcs, d):
     with pytest.raises(ValueError):
         ControlNetUnit(**d)
+
+
+def test_resize_mode():
+    ControlNetUnit(resize_mode="Just Resize")
+
+
+def test_weight():
+    ControlNetUnit(weight=0.5)
+    ControlNetUnit(weight=0.0)
+    with pytest.raises(ValueError):
+        ControlNetUnit(weight=-1)
+    with pytest.raises(ValueError):
+        ControlNetUnit(weight=100)
+
+
+def test_start_end():
+    ControlNetUnit(guidance_start=0.0, guidance_end=1.0)
+    ControlNetUnit(guidance_start=0.5, guidance_end=1.0)
+    ControlNetUnit(guidance_start=0.5, guidance_end=0.5)
+
+    with pytest.raises(ValueError):
+        ControlNetUnit(guidance_start=1.0, guidance_end=0.0)
+    with pytest.raises(ValueError):
+        ControlNetUnit(guidance_start=11)
+    with pytest.raises(ValueError):
+        ControlNetUnit(guidance_end=11)

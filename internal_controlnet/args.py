@@ -57,8 +57,17 @@ class ControlNetUnit(BaseModel):
     processor_res: int = -1
     threshold_a: float = -1
     threshold_b: float = -1
-    guidance_start: float = 0.0
-    guidance_end: float = 1.0
+    guidance_start: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
+    guidance_end: Annotated[float, Field(ge=0.0, le=1.0)] = 1.0
+
+    @root_validator
+    def guidance_check(cls, values: dict) -> dict:
+        start = values.get("guidance_start")
+        end = values.get("guidance_end")
+        if start > end:
+            raise ValueError(f"guidance_start({start}) > guidance_end({end})")
+        return values
+
     pixel_perfect: bool = False
     control_mode: ControlMode = ControlMode.BALANCED
     # Whether to crop input image based on A1111 img2img mask. This flag is only used when `inpaint area`

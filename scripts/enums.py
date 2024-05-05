@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, List, NamedTuple
+from typing import List, NamedTuple
 from functools import lru_cache
 
 
