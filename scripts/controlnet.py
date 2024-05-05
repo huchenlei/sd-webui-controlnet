@@ -110,18 +110,6 @@ def find_closest_lora_model_name(search: str):
     return global_state.cn_models_names[applicable[0]]
 
 
-def swap_img2img_pipeline(p: processing.StableDiffusionProcessingImg2Img):
-    p.__class__ = processing.StableDiffusionProcessingTxt2Img
-    dummy = processing.StableDiffusionProcessingTxt2Img()
-    for k, v in dummy.__dict__.items():
-        if hasattr(p, k):
-            continue
-        setattr(p, k, v)
-
-
-
-
-
 def image_dict_from_any(image) -> Optional[Dict[str, np.ndarray]]:
     if image is None:
         return None
