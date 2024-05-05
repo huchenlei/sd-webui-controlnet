@@ -312,11 +312,6 @@ class Script(
     def show(self, is_img2img):
         return modules.scripts.AlwaysVisible
 
-    @staticmethod
-    def get_default_ui_unit(is_ui=True):
-        cls = UiControlNetUnit if is_ui else external_code.ControlNetUnit
-        return cls(enabled=False, module="none", model="None")
-
     def uigroup(
         self,
         tabname: str,
@@ -689,12 +684,6 @@ class Script(
     @staticmethod
     def get_enabled_units(p):
         units = external_code.get_all_units_in_processing(p)
-        if len(units) == 0:
-            # fill a null group
-            remote_unit = Script.parse_remote_call(p, Script.get_default_ui_unit(), 0)
-            if remote_unit.enabled:
-                units.append(remote_unit)
-
         enabled_units = []
         for idx, unit in enumerate(units):
             local_unit = Script.parse_remote_call(p, unit, idx)
