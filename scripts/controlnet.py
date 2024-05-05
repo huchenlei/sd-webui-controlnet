@@ -73,6 +73,7 @@ os.makedirs(gradio_tempfile_path, exist_ok=True)
 
 init_logger()
 logger.info(f"ControlNet {version_flag}")
+global_state.update_cn_models()
 
 def clear_all_secondary_control_models(m):
     all_modules = torch_dfs(m)
@@ -117,7 +118,7 @@ def swap_img2img_pipeline(p: processing.StableDiffusionProcessingImg2Img):
         setattr(p, k, v)
 
 
-global_state.update_cn_models()
+
 
 
 def image_dict_from_any(image) -> Optional[Dict[str, np.ndarray]]:
