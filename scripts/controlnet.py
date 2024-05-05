@@ -16,7 +16,7 @@ from einops import rearrange
 # Register all preprocessors.
 import scripts.preprocessor as preprocessor_init  # noqa
 from annotator.util import HWC3
-from internal_controlnet.image_utils import prepare_mask
+from internal_controlnet.image_utils import prepare_mask, set_numpy_seed
 from scripts import (
     global_state,
     hook,
