@@ -1,4 +1,5 @@
 import pytest
+import torch
 import numpy as np
 
 from internal_controlnet.args import ControlNetUnit
@@ -8,6 +9,7 @@ H = W = 128
 img1 = np.ones(shape=[H, W, 3], dtype=np.uint8)
 img2 = np.ones(shape=[H, W, 3], dtype=np.uint8) * 2
 ui_img = np.ones(shape=[1, H, W, 4], dtype=np.uint8)
+tensor1 = torch.zeros(size=[1, 1], dtype=torch.float16)
 
 
 @pytest.fixture(scope="module")
@@ -17,6 +19,9 @@ def set_cls_funcs():
     ControlNetUnit.cls_decode_base64 = lambda s: {
         "b64img1": img1,
         "b64img2": img2,
+    }[s]
+    ControlNetUnit.cls_torch_load_base64 = lambda s: {
+        "b64tensor1": tensor1,
     }[s]
 
 
@@ -119,6 +124,7 @@ def test_start_end():
     with pytest.raises(ValueError):
         ControlNetUnit(guidance_end=11)
 
+
 def test_effective_region_mask():
     ControlNetUnit(effective_region_mask="b64img1")
     ControlNetUnit(effective_region_mask=None)
@@ -127,3 +133,11 @@ def test_effective_region_mask():
     with pytest.raises(ValueError):
         ControlNetUnit(effective_region_mask=124)
 
+
+def test_ipadapter_input():
+    ControlNetUnit(ipadapter_input=["b64tensor1"])
+    ControlNetUnit(ipadapter_input="b64tensor1")
+    ControlNetUnit(ipadapter_input=None)
+
+    with pytest.raises(ValueError):
+        ControlNetUnit(ipadapter_input=[])

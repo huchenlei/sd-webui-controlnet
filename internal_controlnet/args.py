@@ -29,6 +29,7 @@ class ControlNetUnit(BaseModel):
     cls_match_module: ClassVar[Callable[[str], bool]] = _unimplemented_func
     cls_match_model: ClassVar[Callable[[str], bool]] = _unimplemented_func
     cls_decode_base64: ClassVar[Callable[[str], np.ndarray]] = _unimplemented_func
+    cls_torch_load_base64: ClassVar[Callable[[Any], torch.Tensor]] = _unimplemented_func
 
     enabled: bool = True
     module: str = "none"
@@ -118,6 +119,16 @@ class ControlNetUnit(BaseModel):
     # preprocessor output.
     # Currently the option is only accessible in API calls.
     ipadapter_input: Optional[List[torch.Tensor]] = None
+
+    @validator("ipadapter_input", pre=True)
+    def parse_ipadapter_input(cls, value) -> Optional[List[torch.Tensor]]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = [value]
+        result = [cls.cls_torch_load_base64(b) for b in value]
+        assert result, "input cannot be empty"
+        return result
 
     mask: Optional[str] = None
     mask_image: Optional[str] = None
