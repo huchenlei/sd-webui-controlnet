@@ -37,6 +37,7 @@ from scripts.controlnet_ui.photopea import Photopea
 from scripts.logging import logger, init_logger
 from scripts.supported_preprocessor import Preprocessor
 from scripts.animate_diff.batch import add_animate_diff_batch_input
+from scripts.controlnet_version import version_flag
 from modules.processing import StableDiffusionProcessingImg2Img, StableDiffusionProcessingTxt2Img, StableDiffusionProcessing
 from modules.images import save_image
 from scripts.infotext import Infotext
@@ -51,6 +52,7 @@ from scripts.controlnet_model_guess import build_model_by_guess, ControlModel
 from scripts.hook import torch_dfs
 
 init_logger()
+logger.info(f"ControlNet {version_flag}")
 
 # Gradio 3.32 bug fix
 import tempfile
