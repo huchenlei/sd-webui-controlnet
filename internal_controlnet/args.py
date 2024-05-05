@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from typing import Optional, List, Annotated, ClassVar, Callable
+from typing import Optional, List, Annotated, ClassVar, Callable, Any
 from pydantic import BaseModel, validator, root_validator, Field
 from PIL import Image
 
@@ -49,7 +49,8 @@ class ControlNetUnit(BaseModel):
 
     weight: Annotated[float, Field(ge=0.0, le=2.0)] = 1.0
     # [B, H, W, 4] RGBA
-    image: Optional[np.ndarray] = None
+    # Optional[np.ndarray]
+    image: Any = None
 
     resize_mode: ResizeMode = ResizeMode.INNER_FIT
     low_vram: bool = False
@@ -124,7 +125,7 @@ class ControlNetUnit(BaseModel):
         """
         Parse image with following formats.
         API
-        - image = {"image": ..., "mask": ...}
+        - image = {"image": base64image, "mask": base64image,}
         - image = [image, mask]
         - image = (image, mask)
         - image = [{"image": ..., "mask": ...}, {"image": ..., "mask": ...}, ...]
@@ -200,7 +201,7 @@ class ControlNetUnit(BaseModel):
             np_image = parse_image(image)
             np_mask = (
                 np.ones_like(np_image) * 255 if mask is None else parse_image(mask)
-            )
+            )[:, :, 0:1]
             np_images.append(np.concatenate([np_image, np_mask], axis=2))  # [H, W, 4]
 
         final_np_image = np.stack(np_images, axis=0)  # [B, H, W, 4]
