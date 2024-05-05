@@ -482,60 +482,6 @@ class Script(
         return control_model
 
     @staticmethod
-    def get_remote_call(p, attribute, default=None, idx=0, strict=False, force=False):
-        if not force and not shared.opts.data.get(
-            "control_net_allow_script_control", False
-        ):
-            return default
-
-        def get_element(obj, strict=False):
-            if not isinstance(obj, list):
-                return obj if not strict or idx == 0 else None
-            elif idx < len(obj):
-                return obj[idx]
-            else:
-                return None
-
-        attribute_value = get_element(getattr(p, attribute, None), strict)
-        return attribute_value if attribute_value is not None else default
-
-    @staticmethod
-    def parse_remote_call(p, unit: external_code.ControlNetUnit, idx):
-        selector = Script.get_remote_call
-
-        unit.enabled = selector(
-            p, "control_net_enabled", unit.enabled, idx, strict=True
-        )
-        unit.module = selector(p, "control_net_module", unit.module, idx)
-        unit.model = selector(p, "control_net_model", unit.model, idx)
-        unit.weight = selector(p, "control_net_weight", unit.weight, idx)
-        unit.image = selector(p, "control_net_image", unit.image, idx)
-        unit.resize_mode = selector(p, "control_net_resize_mode", unit.resize_mode, idx)
-        unit.low_vram = selector(p, "control_net_lowvram", unit.low_vram, idx)
-        unit.processor_res = selector(p, "control_net_pres", unit.processor_res, idx)
-        unit.threshold_a = selector(p, "control_net_pthr_a", unit.threshold_a, idx)
-        unit.threshold_b = selector(p, "control_net_pthr_b", unit.threshold_b, idx)
-        unit.guidance_start = selector(
-            p, "control_net_guidance_start", unit.guidance_start, idx
-        )
-        unit.guidance_end = selector(
-            p, "control_net_guidance_end", unit.guidance_end, idx
-        )
-        # Backward compatibility. See https://github.com/Mikubill/sd-webui-controlnet/issues/1740
-        # for more details.
-        unit.guidance_end = selector(
-            p, "control_net_guidance_strength", unit.guidance_end, idx
-        )
-        unit.control_mode = selector(
-            p, "control_net_control_mode", unit.control_mode, idx
-        )
-        unit.pixel_perfect = selector(
-            p, "control_net_pixel_perfect", unit.pixel_perfect, idx
-        )
-
-        return unit
-
-    @staticmethod
     def detectmap_proc(detected_map, module, resize_mode, h, w):
 
         if "inpaint" in module:
@@ -686,14 +632,13 @@ class Script(
         units = external_code.get_all_units_in_processing(p)
         enabled_units = []
         for idx, unit in enumerate(units):
-            local_unit = Script.parse_remote_call(p, unit, idx)
-            if not local_unit.enabled:
+            if not unit.enabled:
                 continue
 
-            if hasattr(local_unit, "unfold_merged"):
-                enabled_units.extend(local_unit.unfold_merged())
+            if hasattr(unit, "unfold_merged"):
+                enabled_units.extend(unit.unfold_merged())
             else:
-                enabled_units.append(copy(local_unit))
+                enabled_units.append(copy(unit))
 
         Infotext.write_infotext(enabled_units, p)
         return enabled_units
