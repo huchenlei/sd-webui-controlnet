@@ -1,6 +1,7 @@
 import pytest
 import torch
 import numpy as np
+from dataclasses import dataclass
 
 from internal_controlnet.args import ControlNetUnit
 
@@ -22,6 +23,10 @@ def set_cls_funcs():
     }[s]
     ControlNetUnit.cls_torch_load_base64 = lambda s: {
         "b64tensor1": tensor1,
+    }[s]
+    ControlNetUnit.cls_get_preprocessor = lambda s: {
+        "module1": MockPreprocessor(),
+        "none": MockPreprocessor(),
     }[s]
 
 
@@ -141,3 +146,24 @@ def test_ipadapter_input():
 
     with pytest.raises(ValueError):
         ControlNetUnit(ipadapter_input=[])
+
+
+@dataclass
+class MockSlider:
+    value: float = 1
+    minimum: float = 0
+    maximum: float = 2
+
+
+@dataclass
+class MockPreprocessor:
+    slider_resolution = MockSlider()
+    slider_1 = MockSlider()
+    slider_2 = MockSlider()
+
+
+def test_preprocessor_sliders():
+    unit = ControlNetUnit(module="none")
+    assert unit.processor_res == 1
+    assert unit.threshold_a == 1
+    assert unit.threshold_b == 1

@@ -193,22 +193,6 @@ class ControlNetUnit:
             "instant_id_face_embedding",
         )
 
-    @staticmethod
-    def infotext_excluded_fields() -> List[str]:
-        return [
-            "image",
-            "enabled",
-            # API-only fields.
-            "advanced_weighting",
-            "ipadapter_input",
-            # End of API-only fields.
-            # Note: "inpaint_crop_image" is img2img inpaint only flag, which does not
-            # provide much information when restoring the unit.
-            "inpaint_crop_input_image",
-            "effective_region_mask",
-            "pulid_mode",
-        ]
-
     @property
     def is_animate_diff_batch(self) -> bool:
         return getattr(self, "animatediff_batch", False)

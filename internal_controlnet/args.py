@@ -30,6 +30,7 @@ class ControlNetUnit(BaseModel):
     cls_match_model: ClassVar[Callable[[str], bool]] = _unimplemented_func
     cls_decode_base64: ClassVar[Callable[[str], np.ndarray]] = _unimplemented_func
     cls_torch_load_base64: ClassVar[Callable[[Any], torch.Tensor]] = _unimplemented_func
+    cls_get_preprocessor: ClassVar[Callable[[str], Any]] = _unimplemented_func
 
     enabled: bool = True
     module: str = "none"
@@ -58,6 +59,33 @@ class ControlNetUnit(BaseModel):
     processor_res: int = -1
     threshold_a: float = -1
     threshold_b: float = -1
+
+    @root_validator
+    def bound_check_params(cls, values: dict) -> dict:
+        """
+        Checks and corrects negative parameters in ControlNetUnit 'unit' in place.
+        Parameters 'processor_res', 'threshold_a', 'threshold_b' are reset to
+        their default values if negative.
+        """
+        module = values.get("module")
+        if not module:
+            return values
+
+        preprocessor = cls.cls_get_preprocessor(module)
+        assert preprocessor is not None
+        for unit_param, param in zip(
+            ("processor_res", "threshold_a", "threshold_b"),
+            ("slider_resolution", "slider_1", "slider_2"),
+        ):
+            value = values.get(unit_param)
+            cfg = getattr(preprocessor, param)
+            if value < cfg.minimum or value > cfg.maximum:
+                values[unit_param] = cfg.value
+                logger.info(
+                    f"[{module}.{unit_param}] Invalid value({value}), using default value {cfg.value}."
+                )
+        return values
+
     guidance_start: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
     guidance_end: Annotated[float, Field(ge=0.0, le=1.0)] = 1.0
 
@@ -237,3 +265,50 @@ class ControlNetUnit(BaseModel):
         values["image"] = final_np_image
 
         return values
+
+    @staticmethod
+    def infotext_excluded_fields() -> List[str]:
+        return [
+            "image",
+            "enabled",
+            "advanced_weighting",
+            "ipadapter_input",
+            # Note: "inpaint_crop_image" is img2img inpaint only flag, which does not
+            # provide much information when restoring the unit.
+            "inpaint_crop_input_image",
+            "effective_region_mask",
+            "pulid_mode",
+        ]
+
+    @property
+    def accepts_multiple_inputs(self) -> bool:
+        """This unit can accept multiple input images."""
+        return self.module in (
+            "ip-adapter-auto",
+            "ip-adapter_clip_sdxl",
+            "ip-adapter_clip_sdxl_plus_vith",
+            "ip-adapter_clip_sd15",
+            "ip-adapter_face_id",
+            "ip-adapter_face_id_plus",
+            "ip-adapter_pulid",
+            "instant_id_face_embedding",
+        )
+
+    @property
+    def is_animate_diff_batch(self) -> bool:
+        return getattr(self, "animatediff_batch", False)
+
+    @property
+    def uses_clip(self) -> bool:
+        """Whether this unit uses clip preprocessor."""
+        return any(
+            (
+                ("ip-adapter" in self.module and "face_id" not in self.module),
+                self.module
+                in ("clip_vision", "revision_clipvision", "revision_ignore_prompt"),
+            )
+        )
+
+    @property
+    def is_inpaint(self) -> bool:
+        return "inpaint" in self.module
