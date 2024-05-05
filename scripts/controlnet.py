@@ -151,35 +151,6 @@ def image_dict_from_any(image) -> Optional[Dict[str, np.ndarray]]:
 
 
 
-def set_numpy_seed(p: processing.StableDiffusionProcessing) -> Optional[int]:
-    """
-    Set the random seed for NumPy based on the provided parameters.
-
-    Args:
-        p (processing.StableDiffusionProcessing): The instance of the StableDiffusionProcessing class.
-
-    Returns:
-        Optional[int]: The computed random seed if successful, or None if an exception occurs.
-
-    This function sets the random seed for NumPy using the seed and subseed values from the given instance of
-    StableDiffusionProcessing. If either seed or subseed is -1, it uses the first value from `all_seeds`.
-    Otherwise, it takes the maximum of the provided seed value and 0.
-
-    The final random seed is computed by adding the seed and subseed values, applying a bitwise AND operation
-    with 0xFFFFFFFF to ensure it fits within a 32-bit integer.
-    """
-    try:
-        tmp_seed = int(p.all_seeds[0] if p.seed == -1 else max(int(p.seed), 0))
-        tmp_subseed = int(p.all_seeds[0] if p.subseed == -1 else max(int(p.subseed), 0))
-        seed = (tmp_seed + tmp_subseed) & 0xFFFFFFFF
-        np.random.seed(seed)
-        return seed
-    except Exception as e:
-        logger.warning(e)
-        logger.warning("Warning: Failed to use consistent random seed.")
-        return None
-
-
 def get_pytorch_control(x: np.ndarray) -> torch.Tensor:
     # A very safe method to make sure that Apple/Mac works
     y = x
