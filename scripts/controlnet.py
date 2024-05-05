@@ -74,6 +74,7 @@ init_logger()
 logger.info(f"ControlNet {version_flag}")
 global_state.update_cn_models()
 
+
 def clear_all_secondary_control_models(m):
     all_modules = torch_dfs(m)
 
@@ -146,7 +147,6 @@ def image_dict_from_any(image) -> Optional[Dict[str, np.ndarray]]:
             image["mask"] = np.zeros_like(image["image"], dtype=np.uint8)
 
     return image
-
 
 
 def get_pytorch_control(x: np.ndarray) -> torch.Tensor:
